@@ -7,17 +7,34 @@ import pyvert
 from lxml import etree
 
 
-@click.group()
+def log_invocation(cx):
+    logging.info("Running command {} with parameters:".format(cx.command.name))
+    logging.info("  INPUT: {}".format(cx.obj["input"]))
+    for opt, val in cx.params.items():
+        dash = "-" if len(opt) == 1 else "--"
+        logging.info("  {}{}: {}".format(dash, opt, val))
+
+
+@click.group(context_settings=dict(obj={}))
+@click.pass_context
+@click.argument("input", type=click.File("r"), required=True)
 @click.option("--log", help="Logging verbosity.", default="INFO",
               type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"]))
-def vrt(log):
+def vrt(cx, input, log):
+    """Slice and dice a corpus in vertical format.
+
+    INPUT is a path to the corpus or - for STDIN. Available COMMANDs are listed
+    below.
+
+    """
+    cx.obj["input"] = input
     logging.basicConfig(level=log, format="[%(asctime)s " +
                         os.path.basename(__file__) +
                         ":%(levelname)s] %(message)s")
 
 
 @vrt.command()
-@click.argument("input", type=click.File("r"))
+@click.pass_context
 @click.option("--ancestor", help="The structure to split into chunks.",
               default="doc", type=str)
 @click.option("--child", help="The structure that the chunks will consist of.",
@@ -26,28 +43,30 @@ def vrt(log):
               default="chunk", type=str)
 @click.option("--minmax", help="The minimum and maximum length of a chunk.",
               default=(2000, 5000), type=(int, int))
-def chunk(input, ancestor, child, name, minmax):
+def chunk(cx, ancestor, child, name, minmax):
     """Split a vertical into chunks of a given size.
 
     Output is that same vertical, but separated into chunks. All structures
-    other than ancestor, chunk and child are discarded.
+    other than ``--ancestor``, the chunks themselves and ``--child`` are
+    discarded.
 
-    --ancestor is the existing structure on which to base the chunks; its
+    ``--ancestor`` is the existing structure on which to base the chunks; its
     metadata will be copied over to the newly created chunks.
 
-    --child is the structure which will constitute the immediate children of
-    the chunks and whose boundaries the chunks will respect.
+    ``--child`` is the structure which will constitute the immediate children
+    of the chunks and whose boundaries the chunks will respect.
 
-    Note that --minmax may be violated when the given ancestor structure is
+    Note that ``--minmax`` may be violated when the given ancestor structure is
     shorter, or when the next child boundary occurs some positions after the
     maximum limit.
 
     """
+    log_invocation(cx)
     # we want the chunking to be randomized within the minmax range, but
     # replicable across runs on the same data
     random.seed(1)
-    for struct in pyvert.iterstruct(input, struct=ancestor):
-        chunkified = struct.chunks(child=child, name=name, minmax=minmax)
+    for struct in pyvert.iterstruct(cx.obj["input"], struct=ancestor):
+        chunkified = struct.chunk(child=child, name=name, minmax=minmax)
         print(etree.tostring(chunkified, encoding="unicode"))
         # verify that self.xml hasn't been modified
         # with open("test.xml", "w") as fh:
@@ -55,9 +74,28 @@ def chunk(input, ancestor, child, name, minmax):
 
 
 @vrt.command()
-def group():
-    """Group all target structures within each parent structure according to
-    one (TODO or more) of their attribute values.
+@click.option("--parent", default="doc", type=str,
+              help="The structure which will immediately dominate the groups.")
+@click.option("--target", default="sp", type=str,
+              help="The structure which will be grouped.")
+@click.option("--attr", default="oznacenishody", type=str,
+              help="The attribute by which to group.")
+@click.option("--as", "as_struct", default="group", type=str,
+              help="The tag name of the group structures.")
+@click.pass_context
+def group(cx, parent, target, attr, as_struct):
+    """Group structures in vertical according to an attribute.
+
+    Group all ``--target`` structures within each ``--parent`` structure
+    according to one (TODO or more?) of their ``--attr``ibute values.
+
+    Structures above parent and between parent and target are discarded. Groups
+    will be represented as structures with tag <``--as``> and an @id attribute
+    with the same value as the original attr. Other attributes are copied over
+    from the first target falling into the given group, and from the parent.
 
     """
-    click.echo("This works!")
+    log_invocation(cx)
+    for struct in pyvert.iterstruct(cx.obj["input"], struct=parent):
+        groupified = struct.group(target=target, attr=attr, as_struct=as_struct)
+        print(etree.tostring(groupified, encoding="unicode"))
