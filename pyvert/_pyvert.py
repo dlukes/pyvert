@@ -139,6 +139,42 @@ class Structure():
 
         return root
 
+    def group(self, target, attr, as_struct):
+        """Group target structures under the root according to a specified attribute
+        value.
+
+        :param target: The structures to group.
+        :param attr: The attribute by whose values to group them by.
+        :param as_struct: The tag name to use for the groups.
+        :rtype: etree.Element
+
+        """
+        root = etree.Element(self.xml.tag, attrib=self.xml.attrib)
+        root.text = "\n"
+        root_id = root.get("id", None)
+
+        def new_group(attrib, id):
+            g = etree.SubElement(root, as_struct, attrib=attrib)
+            g.set("id", id)
+            g.text = g.tail = "\n"
+            return g
+
+        groups = {}
+        for target in self.xml.iter(target):
+            t_val = target.get(attr, None)
+            id = root_id + "_" + t_val
+            if t_val not in groups:
+                # new Python 3.5 syntax; in case of dupes, the last occurrence
+                # of a key takes precedence:
+                # attrib = {**root.attrib, **target.attrib}
+                attrib = dict(root.attrib.items())
+                attrib.update(target.attrib)
+                group = groups.setdefault(t_val, new_group(attrib, id))
+            else:
+                group = groups.get(t_val)
+            group.append(target)
+        return root
+
     def _xmlize(self):
         """Transform vertical into marginally valid XML.
 
