@@ -39,7 +39,7 @@ class Structure():
                  "It has been dumped to {} for inspection.".format(fh.name)
             raise Exception(e)
 
-    def chunks(self, child, name, minmax):
+    def chunk(self, child, name, minmax):
         """Split the structure into chunks of a given size.
 
         :param name: The name to give to the XML element representing the
@@ -51,7 +51,7 @@ class Structure():
         :param minmax: The length range the individual chunks should roughly
             fall into.
         :type minmax: (int, int)
-        :rtype: Element
+        :rtype: etree.Element
 
         """
         def chunk_pos(idx, total):
@@ -69,8 +69,7 @@ class Structure():
                 else:
                     return "end"
 
-        root = self.xml
-        root = etree.Element(root.tag, attrib=root.attrib)
+        root = etree.Element(self.xml.tag, attrib=self.xml.attrib)
         root.text = "\n"
 
         def loop_vars(name, attrib, minmax):
