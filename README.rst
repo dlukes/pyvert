@@ -31,3 +31,11 @@ Note
 
 This project has been set up using PyScaffold 2.5.3. For details and usage
 information on PyScaffold see http://pyscaffold.readthedocs.org/.
+
+License
+=======
+
+Copyright © 2016 `ÚČNK <http://korpus.cz>`_/David Lukeš
+
+Distributed under the `GNU General Public License v3
+<http://www.gnu.org/licenses/gpl-3.0.en.html>`_.
