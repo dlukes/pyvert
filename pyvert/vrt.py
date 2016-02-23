@@ -103,5 +103,5 @@ def group(cx, parent, target, attr, as_struct):
     """
     log_invocation(cx)
     for struct in pyvert.iterstruct(cx.obj["input"], struct=parent):
-        groupified = struct.group(target=target, attr=attr, as_struct=as_struct)
-        print(etree.tostring(groupified, encoding="unicode"))
+        grouped = struct.group(target=target, attr=attr, as_struct=as_struct)
+        print(etree.tostring(grouped, encoding="unicode"))
