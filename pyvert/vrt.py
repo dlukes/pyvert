@@ -105,3 +105,32 @@ def group(cx, parent, target, attr, as_struct):
     for struct in pyvert.iterstruct(cx.obj["input"], struct=parent):
         grouped = struct.group(target=target, attr=attr, as_struct=as_struct)
         print(etree.tostring(grouped, encoding="unicode"))
+
+
+@vrt.command()
+@click.option("--struct", default="doc", type=str,
+              help="Structures into which the vertical will be split.")
+@click.option("--attr", required=True, type=(str, str), multiple=True,
+              help="Attribute key/value pair(s) to filter by.")
+@click.option("--all", "quant", flag_value="issuperset", default=True,
+              help="Struct must match all ``--attr key val`` pairs to pass.")
+@click.option("--any", "quant", flag_value="intersection",
+              help="Struct can match any ``--attr key val`` pair to pass.")
+@click.pass_context
+def filter(cx, struct, attr, quant):
+    """Filter structures in vertical according to attribute value(s).
+
+    All structures above ``--struct`` are discarded. The output is a vertical
+    consisting of structures of type struct which satisfy ``--all/--any``
+    ``--attr key val`` conditions.
+
+    """
+    log_invocation(cx)
+    attr = set(attr)
+    for struct in pyvert.iterstruct(cx.obj["input"], struct=struct):
+        struct_attr = set(struct.attr.items())
+        # check if struct_attr is a superset of attr (if quant == "all") or
+        # whether the intersection of struct_attr and attr is non-zero (if
+        # quant == "any")
+        if getattr(struct_attr, quant)(attr):
+            print(struct.raw, end="")
