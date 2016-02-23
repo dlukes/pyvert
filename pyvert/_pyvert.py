@@ -12,6 +12,9 @@ __version__ = "0.0.0"
 # disable security preventing DoS attacks with huge files
 etree.set_default_parser(etree.ETCompatXMLParser(huge_tree=True))
 
+# valid structure (i.e. pseudo-XML tag) names
+STRUCTURES = ["opus", "doc", "sp", "seg", "s"]
+
 
 class Structure():
     """A structure extracted from a vertical.
@@ -181,12 +184,12 @@ class Structure():
         """
         vert = self.raw
         vert = re.sub(r"&", r"&amp;", vert)
-        # anything that looks like a tag but is really a position (i.e. it's
-        # followed at some point by a tab -- TODO this fails for corpora which
-        # have only one positional attribute) must be neutralized into XML
-        # entitites
-        vert = re.sub(r"<(?=.*?\t)", r"&lt;", vert)
-        vert = re.sub(r">(?=.*?\t)", r"&gt;", vert)
+        vert = re.sub(r"<", "&lt;", vert)
+        vert = re.sub(r">", "&gt;", vert)
+        # now put pointy brackets back where they belong (= only on lines which
+        # we are reasonably sure are structure start / end tags)
+        match = r"^&lt;(/?({})[^\t]*)&gt;$".format("|".join(STRUCTURES))
+        vert = re.sub(match, r"<\1>", vert, flags=re.M)
         return vert
 
 
