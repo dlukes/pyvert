@@ -6,6 +6,10 @@ import random
 import pyvert
 from lxml import etree
 
+# prevent chatty BrokenPipe errors
+from signal import signal, SIGPIPE, SIG_DFL
+signal(SIGPIPE, SIG_DFL)
+
 
 def log_invocation(cx):
     logging.info("Running command {} with parameters:".format(cx.command.name))
