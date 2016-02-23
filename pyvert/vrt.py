@@ -12,8 +12,9 @@ signal(SIGPIPE, SIG_DFL)
 
 
 def log_invocation(cx):
-    logging.info("Running command {} with parameters:".format(cx.command.name))
-    logging.info("  INPUT: {}".format(cx.obj["input"]))
+    logging.info("Global parameters:")
+    logging.info("  --input: {}".format(cx.obj["input"]))
+    logging.info("Command ``{}`` parameters:".format(cx.command.name))
     for opt, val in cx.params.items():
         dash = "-" if len(opt) == 1 else "--"
         logging.info("  {}{}: {}".format(dash, opt, val))
@@ -21,14 +22,15 @@ def log_invocation(cx):
 
 @click.group(context_settings=dict(obj={}))
 @click.pass_context
-@click.argument("input", type=click.File("r"), required=True)
+@click.option("--input", help="Path to vertical to process (default: STDIN).",
+              type=click.File("r"), default="-")
 @click.option("--log", help="Logging verbosity.", default="INFO",
               type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"]))
 def vrt(cx, input, log):
     """Slice and dice a corpus in vertical format.
 
-    INPUT is a path to the corpus or - for STDIN. Available COMMANDs are listed
-    below.
+    Available COMMANDs are listed below and are documented with ``vrt COMMAND
+    --help``.
 
     """
     cx.obj["input"] = input
