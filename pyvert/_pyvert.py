@@ -121,11 +121,10 @@ class Structure():
         return root
 
     def group(self, target, attr, as_struct):
-        """Group target structures under the root according to a specified attribute
-        value.
+        """Group target structures under the root according to attribute values.
 
         :param target: The structures to group.
-        :param attr: The attribute by whose values to group them by.
+        :param attr: Iterable of attributes by whose values to group them by.
         :param as_struct: The tag name to use for the groups.
         :rtype: etree.Element
 
@@ -142,8 +141,8 @@ class Structure():
 
         groups = {}
         for target in self.xml.iter(target):
-            t_val = target.get(attr, None)
-            id = root_id + "_" + t_val
+            t_val = tuple(target.get(a, None) for a in attr)
+            id = root_id + "/" + ",".join(t_val)
             if t_val not in groups:
                 # new Python 3.5 syntax; in case of dupes, the last occurrence
                 # of a key takes precedence:

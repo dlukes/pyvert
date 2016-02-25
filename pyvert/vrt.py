@@ -77,20 +77,20 @@ def chunk(cx, ancestor, child, name, minmax):
 
 
 @vrt.command()
-@click.option("--parent", default="doc", type=str,
-              help="The structure which will immediately dominate the groups.")
+@click.option("--parent", default=None, type=str,
+              help="Structure which will immediately dominate the groups.")
 @click.option("--target", default="sp", type=str,
-              help="The structure which will be grouped.")
-@click.option("--attr", default="oznacenishody", type=str,
-              help="The attribute by which to group.")
+              help="Structure which will be grouped.")
+@click.option("--attr", default=["oznacenishody"], type=str, multiple=True,
+              help="Attribute(s) by which to group.")
 @click.option("--as", "as_struct", default="group", type=str,
-              help="The tag name of the group structures.")
+              help="Tag name of the group structures.")
 @click.pass_context
 def group(cx, parent, target, attr, as_struct):
     """Group structures in vertical according to an attribute.
 
     Group all ``--target`` structures within each ``--parent`` structure
-    according to one (TODO or more?) of their ``--attr``ibute values.
+    according to one or more of their ``--attr``ibute values.
 
     Structures above parent and between parent and target are discarded. Groups
     will be represented as structures with tag <``--as``> and an @id attribute
