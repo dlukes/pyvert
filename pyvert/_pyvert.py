@@ -170,17 +170,26 @@ class Structure():
         return vert
 
 
-def iterstruct(vert_file, struct="doc"):
+def iterstruct(vert_file, struct=None):
     """Yield input vertical one struct at a time.
 
     :param vert_file: Input vertical.
     :param struct: The name of the struct into which the vertical will be
-        chopped.
+        chopped. If None, the whole vertical is returned.
     :rtype: Structure
 
     """
+    if struct is None:
+        yield Structure(vert_file.read())
+        raise StopIteration
     buffer = ""
     for line in vert_file:
+        # if the buffer already contains something or if the current line
+        # starts with the given structure name, then we're inside a target
+        # structure that we want to collect; otherwise, just skip to the next
+        # line
+        if not (buffer or line.startswith("<{}".format(struct))):
+            continue
         buffer += line
         if line.startswith("</{}".format(struct)):
             yield Structure(buffer)
