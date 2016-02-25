@@ -9,7 +9,7 @@ Description
 
 A library and assorted command line tools for slicing and dicing files in the
 so-called *vertical* format, which are tantalizingly close to valid XML but not
-quite.
+quite there.
 
 Installation
 ============
@@ -21,8 +21,8 @@ Clone from GitHub and use ``pip``::
   pip install --user [--editable] .
 
 A ``vrt`` command is installed as the CLI interface to the library. See ``vrt
---help`` for details on **global options** and ``vrt COMMAND --help`` for
-**command options**.
+--help`` for details on **global options** and a list of available commands, and
+``vrt COMMAND --help`` for **command options**.
 
 Requirements and compatibility
 ==============================
