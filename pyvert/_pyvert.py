@@ -165,7 +165,7 @@ class Structure():
         vert = re.sub(r">", "&gt;", vert)
         # now put pointy brackets back where they belong (= only on lines which
         # we are reasonably sure are structure start / end tags)
-        match = r"^&lt;(/?({})[^\t]*)&gt;$".format("|".join(STRUCTURES))
+        match = r"^&lt;(/?({})[^\t]*?)&gt;$".format("|".join(STRUCTURES))
         vert = re.sub(match, r"<\1>", vert, flags=re.M)
         return vert
 
