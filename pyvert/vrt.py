@@ -1,5 +1,6 @@
-import os
 import click
+from click._compat import open_stream
+from click.utils import safecall
 import logging
 
 import random
@@ -10,33 +11,56 @@ from lxml import etree
 from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE, SIG_DFL)
 
+ENC_ERROR_HANDLERS = ["strict", "ignore", "replace", "surrogateescape",
+                      "xmlcharrefreplace", "backslashreplace", "namereplace"]
+
 
 def log_invocation(cx):
-    logging.info("Global parameters:")
-    logging.info("  --input: {}".format(cx.obj["input"]))
-    logging.info("Command ``{}`` parameters:".format(cx.command.name))
-    for opt, val in cx.params.items():
+    caller = cx.command.name
+
+    def log(opt, val):
         dash = "-" if len(opt) == 1 else "--"
-        logging.info("  {}{}: {}".format(dash, opt, val))
+        logging.info("  {}{}: {}".format(dash, opt, val),
+                     extra=dict(command=caller))
+
+    logging.info("Global parameters:", extra=dict(command=caller))
+    for opt, val in cx.obj.items():
+        log(opt, val)
+    logging.info("Command parameters:", extra=dict(command=caller))
+    for opt, val in cx.params.items():
+        log(opt, val)
 
 
 @click.group(context_settings=dict(obj={}))
 @click.pass_context
 @click.option("--input", help="Path to vertical to process (default: STDIN).",
-              type=click.File("r"), default="-")
+              type=click.File("r", lazy=True), default="-")
+@click.option("--inenc", help="Input encoding.", type=str, default="utf-8")
+@click.option("--outenc", help="Output encoding.", type=str, default="utf-8")
+@click.option("--errors", help="How to handle encoding errors.",
+              default="strict", type=click.Choice(ENC_ERROR_HANDLERS))
+@click.option("--id", type=str, default="",
+              help="Give an ID to this call to distinguish it in the logs.")
 @click.option("--log", help="Logging verbosity.", default="INFO",
               type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"]))
-def vrt(cx, input, log):
+def vrt(cx, input, inenc, outenc, errors, id, log):
     """Slice and dice a corpus in vertical format.
 
     Available COMMANDs are listed below and are documented with ``vrt COMMAND
     --help``.
 
     """
-    cx.obj["input"] = input
-    logging.basicConfig(level=log, format="[%(asctime)s " +
-                        os.path.basename(__file__) +
-                        ":%(levelname)s] %(message)s")
+    input, should_close = open_stream(input.name, "r", encoding=inenc,
+                                      errors=errors)
+    if should_close:
+        cx.call_on_close(safecall(input.close))
+    else:
+        cx.call_on_close(safecall(input.flush))
+    cx.obj.update(input=input, inenc=inenc, outenc=outenc, errors=errors,
+                  log=log)
+    top_command = cx.command.name + ("({})".format(id) if id else "")
+    logging.basicConfig(level=log, format="[%(asctime)s " + top_command +
+                        "/%(command)s:%(levelname)s] %(message)s")
 
 
 @vrt.command()
@@ -73,7 +97,7 @@ def chunk(cx, ancestor, child, name, minmax):
     random.seed(1)
     for struct in pyvert.iterstruct(cx.obj["input"], struct=ancestor):
         chunkified = struct.chunk(child=child, name=name, minmax=minmax)
-        print(etree.tostring(chunkified, encoding="unicode"))
+        click.echo(etree.tostring(chunkified, encoding=cx.obj["outenc"]))
 
 
 @vrt.command()
@@ -99,10 +123,10 @@ def group(cx, parent, target, attr, as_struct):
 
     """
     log_invocation(cx)
-        print(etree.tostring(grouped, encoding="unicode"))
     for i, struct in enumerate(pyvert.iterstruct(cx.obj["input"], struct=parent)):
         grouped = struct.group(target=target, attr=attr, as_struct=as_struct,
                                fallback_root_id="__autoid{}__".format(i))
+        click.echo(etree.tostring(grouped, encoding=cx.obj["outenc"]))
 
 
 @vrt.command()
@@ -129,6 +153,6 @@ def filter(cx, struct, attr, test):
         struct_attr = set(struct.attr.items())
         # check if struct_attr is a superset of attr (if test == "all") or
         # whether the intersection of struct_attr and attr is non-zero (if
-            print(struct.raw, end="")
         # test == "any")
         if getattr(struct_attr, test)(attr):
+            click.echo(struct.raw.encode(cx.obj["outenc"]), nl=False)
