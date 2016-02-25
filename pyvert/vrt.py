@@ -1,6 +1,4 @@
 import click
-from click._compat import open_stream
-from click.utils import safecall
 import logging
 
 import random
@@ -50,12 +48,7 @@ def vrt(cx, input, inenc, outenc, errors, id, log):
     --help``.
 
     """
-    input, should_close = open_stream(input.name, "r", encoding=inenc,
-                                      errors=errors)
-    if should_close:
-        cx.call_on_close(safecall(input.close))
-    else:
-        cx.call_on_close(safecall(input.flush))
+    input = click.File("r", encoding=inenc, errors=errors)(input.name, ctx=cx)
     cx.obj.update(input=input, inenc=inenc, outenc=outenc, errors=errors,
                   log=log)
     top_command = cx.command.name + ("({})".format(id) if id else "")
