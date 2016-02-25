@@ -83,10 +83,6 @@ class Structure():
             return chunk, chunk_length, 0
 
         chunk, chunk_length, positions = loop_vars(name, root.attrib, minmax)
-        # DELETEME
-        # debug = lambda: logging.debug(
-        #     "Chunk: {} positions for a planned length of {} in {}."
-        #     .format(positions, chunk_length, root.get("id")))
         for child in self.xml.iter(child):
             # we'll be modifying this, so no choice but to make a new one, or
             # else self.xml would end up modified
@@ -101,35 +97,17 @@ class Structure():
             text = re.sub(r"\n{2,}", "\n", text)
             # only NOW compute the number of positions
             positions += len(text.splitlines())
-            # DELETEME
-            # with open("postupne.txt", "a") as fh:
-            #     print(text, file=fh)
             # set the child's text (remember, if it was a paragraph to start
             # with, it only had newlines in its text)
             new_child.text = "\n" + text + "\n"
             new_child.tail = child.tail
             if positions >= chunk_length:
-                # DELETEME
-                # foo = chunk.xpath("string()").strip("\n")
-                # foo = re.sub(r"\n{2,}", "\n", foo)
-                # with open("najednou.txt", "a") as fh:
-                #     print(foo, file=fh)
-                # foo = len(foo.splitlines())
-                # logging.debug((foo, positions))
-                # assert foo == positions
-                # debug()
                 root.append(chunk)
                 chunk, chunk_length, positions = loop_vars(name, root.attrib, minmax)
         # after the for-loop ends, check if there's a final non-empty chunk
         # that didn't accumulate the required number of positions
         else:
             if positions > 0:
-                # DELETEME
-                # foo = chunk.xpath("string()").strip("\n")
-                # foo = re.sub(r"\n{2,}", "\n", foo)
-                # foo = len(foo.splitlines())
-                # logging.debug((foo, positions))
-                # debug()
                 root.append(chunk)
 
         # annotate chunks with metadata

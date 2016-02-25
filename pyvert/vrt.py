@@ -74,9 +74,6 @@ def chunk(cx, ancestor, child, name, minmax):
     for struct in pyvert.iterstruct(cx.obj["input"], struct=ancestor):
         chunkified = struct.chunk(child=child, name=name, minmax=minmax)
         print(etree.tostring(chunkified, encoding="unicode"))
-        # verify that self.xml hasn't been modified
-        # with open("test.xml", "w") as fh:
-        #     print(etree.tostring(struct.xml, encoding="unicode"), file=fh)
 
 
 @vrt.command()
