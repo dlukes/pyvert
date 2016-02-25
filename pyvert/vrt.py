@@ -155,4 +155,5 @@ def filter(cx, struct, attr, test):
         # whether the intersection of struct_attr and attr is non-zero (if
         # test == "any")
         if getattr(struct_attr, test)(attr):
-            click.echo(struct.raw.encode(cx.obj["outenc"]), nl=False)
+            click.echo(struct.raw.encode(cx.obj["outenc"], errors=cx.obj["errors"]),
+                       nl=False)
