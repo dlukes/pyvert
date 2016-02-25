@@ -11,8 +11,8 @@ from lxml import etree
 from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE, SIG_DFL)
 
-ENC_ERROR_HANDLERS = ["strict", "ignore", "replace", "surrogateescape",
-                      "xmlcharrefreplace", "backslashreplace", "namereplace"]
+ENC_ERR_HNDLRS = ["strict", "ignore", "replace", "surrogateescape",
+                  "xmlcharrefreplace", "backslashreplace", "namereplace"]
 
 
 def log_invocation(cx):
@@ -33,15 +33,15 @@ def log_invocation(cx):
 
 @click.group(context_settings=dict(obj={}))
 @click.pass_context
-@click.option("--input", help="Path to vertical to process (default: STDIN).",
-              type=click.File("r", lazy=True), default="-")
-@click.option("--inenc", help="Input encoding.", type=str, default="utf-8")
-@click.option("--outenc", help="Output encoding.", type=str, default="utf-8")
-@click.option("--errors", help="How to handle encoding errors.",
-              default="strict", type=click.Choice(ENC_ERROR_HANDLERS))
+@click.option("-i", "--input", type=click.File("r", lazy=True), default="-",
+              help="Path to vertical to process (default: STDIN).")
+@click.option("--inenc", type=str, default="utf-8", help="Input encoding.")
+@click.option("--outenc", type=str, default="utf-8", help="Output encoding.")
+@click.option("--errors", default="strict", type=click.Choice(ENC_ERR_HNDLRS),
+              help="How to handle encoding errors.")
 @click.option("--id", type=str, default="",
               help="Give an ID to this call to distinguish it in the logs.")
-@click.option("--log", help="Logging verbosity.", default="INFO",
+@click.option("-l", "--log", help="Logging verbosity.", default="INFO",
               type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"]))
 def vrt(cx, input, inenc, outenc, errors, id, log):
     """Slice and dice a corpus in vertical format.
@@ -65,14 +65,14 @@ def vrt(cx, input, inenc, outenc, errors, id, log):
 
 @vrt.command()
 @click.pass_context
-@click.option("--ancestor", help="The structure to split into chunks.",
-              default="doc", type=str)
-@click.option("--child", help="The structure that the chunks will consist of.",
-              default="s", type=str)
-@click.option("--name", help="The name to give to the added chunk structures.",
-              default="chunk", type=str)
-@click.option("--minmax", help="The minimum and maximum length of a chunk.",
-              default=(2000, 5000), type=(int, int))
+@click.option("-a", "--ancestor", default="doc", type=str,
+              help="The structure to split into chunks.")
+@click.option("-c", "--child", default="s", type=str,
+              help="The structure that the chunks will consist of.")
+@click.option("-n", "--name", default="chunk", type=str,
+              help="The name to give to the added chunk structures.")
+@click.option("-m", "--minmax", default=(2000, 5000), type=(int, int),
+              help="The minimum and maximum length of a chunk.")
 def chunk(cx, ancestor, child, name, minmax):
     """Split a vertical into chunks of a given size.
 
@@ -101,11 +101,11 @@ def chunk(cx, ancestor, child, name, minmax):
 
 
 @vrt.command()
-@click.option("--parent", default=None, type=str,
+@click.option("-p", "--parent", default=None, type=str,
               help="Structure which will immediately dominate the groups.")
-@click.option("--target", default="sp", type=str,
+@click.option("-t", "--target", default="sp", type=str,
               help="Structure which will be grouped.")
-@click.option("--attr", default=["oznacenishody"], type=str, multiple=True,
+@click.option("-a", "--attr", default=["oznacenishody"], type=str, multiple=True,
               help="Attribute(s) by which to group.")
 @click.option("--as", "as_struct", default="group", type=str,
               help="Tag name of the group structures.")
@@ -130,9 +130,9 @@ def group(cx, parent, target, attr, as_struct):
 
 
 @vrt.command()
-@click.option("--struct", default="doc", type=str,
+@click.option("-s", "--struct", default="doc", type=str,
               help="Structures into which the vertical will be split.")
-@click.option("--attr", required=True, type=(str, str), multiple=True,
+@click.option("-a", "--attr", required=True, type=(str, str), multiple=True,
               help="Attribute key/value pair(s) to filter by.")
 @click.option("--all", "test", flag_value="issuperset", default=True,
               help="Struct must match all ``--attr key val`` pairs to pass.")
