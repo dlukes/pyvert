@@ -120,7 +120,7 @@ class Structure():
 
         return root
 
-    def group(self, target, attr, as_struct):
+    def group(self, target, attr, as_struct, fallback_root_id=None):
         """Group target structures under the root according to attribute values.
 
         :param target: The structures to group.
@@ -131,7 +131,12 @@ class Structure():
         """
         root = etree.Element(self.xml.tag, attrib=self.xml.attrib)
         root.text = "\n"
-        root_id = root.get("id", None)
+        root_id = root.get("id", fallback_root_id)
+        if root_id is None:
+            raise RuntimeWarning(
+                "Parent structure has no @id attribute, the @id attributes of "
+                "groups under it might therefore not be unique. Specify a "
+                "``fallback_root_id`` to bypass the issue.")
 
         def new_group(attrib, id):
             g = etree.SubElement(root, as_struct, attrib=attrib)

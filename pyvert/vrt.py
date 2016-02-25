@@ -99,9 +99,10 @@ def group(cx, parent, target, attr, as_struct):
 
     """
     log_invocation(cx)
-    for struct in pyvert.iterstruct(cx.obj["input"], struct=parent):
-        grouped = struct.group(target=target, attr=attr, as_struct=as_struct)
         print(etree.tostring(grouped, encoding="unicode"))
+    for i, struct in enumerate(pyvert.iterstruct(cx.obj["input"], struct=parent)):
+        grouped = struct.group(target=target, attr=attr, as_struct=as_struct,
+                               fallback_root_id="__autoid{}__".format(i))
 
 
 @vrt.command()
