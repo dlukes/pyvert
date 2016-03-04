@@ -166,7 +166,7 @@ class Structure():
 
         """
         vert = self.raw
-        vert = re.sub(r"&", r"&amp;", vert)
+        vert = re.sub(r"&(?!lt;|gt;|amp;)", r"&amp;", vert)
         vert = re.sub(r"<", "&lt;", vert)
         vert = re.sub(r">", "&gt;", vert)
         # now put pointy brackets back where they belong (= only on lines which
