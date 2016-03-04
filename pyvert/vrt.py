@@ -152,3 +152,23 @@ def filter(cx, struct, attr, match):
             click.echo(struct.raw.encode(cx.obj["outenc"],
                                          errors=cx.obj["errors"]),
                        nl=False)
+
+
+@vrt.command()
+@click.option("-p", "--parent", default="doc", type=str,
+              help="Structure *parent* which metadata will be projected.")
+@click.option("-c", "--child", default="text", type=str,
+              help="Structure *child* which metadata will be projected.")
+@click.pass_context
+def project(cx, parent, child):
+    """Project metadata from ``--parent`` structure onto ``--child`` structure.
+
+    Projected attributes are prefixed with the parent structure's name, and if
+    necessary, postfixed with underscores so as to avoid collisions with any
+    existing attributes in the child structure.
+
+    """
+    log_invocation(cx)
+    for struct in pyvert.iterstruct(cx.obj["input"], struct=parent):
+        struct.project(child=child)
+        click.echo(etree.tostring(struct.xml, encoding=cx.obj["outenc"]))

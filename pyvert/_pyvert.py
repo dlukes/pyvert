@@ -161,6 +161,27 @@ class Structure():
             group.append(target)
         return root
 
+    def project(self, child):
+        """Project the root structure's metadata onto its children.
+
+        The structure is *modified in place*.
+
+        Projected attributes are prefixed with the parent structure's name, and
+        if necessary, postfixed with underscores so as to avoid collisions with
+        any existing attributes in the child structure.
+
+        :param child: The child structure onto which to project.
+
+        """
+        attrib = self.xml.attrib
+        for child in self.xml.iter(child):
+            for key in attrib:
+                ckey = self.name + "_" + key
+                while ckey in child.attrib:
+                    ckey += "_"
+                if key not in child.attrib:
+                    child.attrib[ckey] = attrib[key]
+
     def _xmlize(self):
         """Transform vertical into marginally valid XML.
 
