@@ -24,7 +24,7 @@ class Structure():
     def __init__(self, raw_vert):
         self.raw = raw_vert
         self._first_line = self.raw.split("\n", maxsplit=1)[0]
-        self.name = re.search(r"^<(\w+)", self._first_line)
+        self.name = re.findall(r"\w+", self._first_line)[0]
         self.attr = dict(re.findall(r'(\w+)="([^"]+)"', self._first_line))
 
     @lazy
