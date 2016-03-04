@@ -1,5 +1,7 @@
+import io
 import click
 import logging
+from itertools import chain
 
 import random
 import pyvert
@@ -12,8 +14,12 @@ signal(SIGPIPE, SIG_DFL)
 ENC_ERR_HNDLRS = ["strict", "ignore", "replace", "surrogateescape",
                   "xmlcharrefreplace", "backslashreplace", "namereplace"]
 
+#####################
+# Utility functions #
+#####################
 
-def log_invocation(cx):
+
+def _log_invocation(cx):
     caller = cx.command.name
 
     def log(opt, val):
@@ -27,6 +33,50 @@ def log_invocation(cx):
     logging.info("Command parameters:", extra=dict(command=caller))
     for opt, val in cx.params.items():
         log(opt, val)
+
+
+def _make_command(gen_func, *decorators):
+    """Wrap a vertical manipulating generator function in a click command.
+
+    """
+    def command(cx, **kwargs):
+        _log_invocation(cx)
+        for chunk in gen_func(cx.obj["input"], **kwargs):
+            click.echo(chunk.encode(cx.obj["outenc"], errors=cx.obj["errors"]),
+                       nl=False)
+
+    command.__doc__ = gen_func.__doc__
+    for d in chain([click.pass_context, vrt.command(name=gen_func.__name__)],
+                   reversed(decorators)):
+        command = d(command)
+    return command
+
+
+def _option(*args, **kwargs):
+    return click.option(*args, show_default=True, **kwargs)
+
+
+def linewise(chunks):
+    """Iterate over vertical chunks in a linewise fashion.
+
+    Useful for composing functions that expect a filehandle to an unparsed
+    vertical as input and return vertical chunks as strings (for efficiency
+    purposes when outputting to the terminal -- it's faster to encode on a
+    chunk-by-chunk basis rather than line-by-line).
+
+    This makes it easy to chain operations directly in a Python script:
+
+        filtered = vrt.filter(filehandle, ...)
+        grouped = vrt.group(linewise(filtered), ...)
+
+    """
+    for chunk in chunks:
+        yield from io.StringIO(chunk)
+
+
+############
+# Commands #
+############
 
 
 @click.group(context_settings=dict(obj={}))
@@ -84,7 +134,7 @@ def chunk(cx, ancestor, child, name, minmax):
     maximum limit.
 
     """
-    log_invocation(cx)
+    _log_invocation(cx)
     # we want the chunking to be randomized within the minmax range, but
     # replicable across runs on the same data
     random.seed(1)
@@ -115,43 +165,45 @@ def group(cx, parent, target, attr, as_struct):
     from the first target falling into the given group, and from the parent.
 
     """
-    log_invocation(cx)
+    _log_invocation(cx)
     for i, struct in enumerate(pyvert.iterstruct(cx.obj["input"], struct=parent)):
         grouped = struct.group(target=target, attr=attr, as_struct=as_struct,
                                fallback_root_id="__autoid{}__".format(i))
         click.echo(etree.tostring(grouped, encoding=cx.obj["outenc"]))
 
 
-@vrt.command()
-@click.option("-s", "--struct", default="doc", type=str,
-              help="Structures into which the vertical will be split.")
-@click.option("-a", "--attr", required=True, type=(str, str), multiple=True,
-              help="Attribute key/value pair(s) to filter by.")
-@click.option("--all", "match", flag_value="all", default=True,
-              help="Struct must match all ``--attr key val`` pairs to pass.")
-@click.option("--any", "match", flag_value="any",
-              help="Struct can match any ``--attr key val`` pair to pass.")
-@click.pass_context
-def filter(cx, struct, attr, match):
+def filter(vertical, struct, attr, match="all"):
     """Filter structures in vertical according to attribute value(s).
 
-    All structures above ``--struct`` are discarded. The output is a vertical
-    consisting of structures of type struct which satisfy ``--all/--any``
-    ``--attr key val`` conditions.
+    All structures above ``struct`` are discarded. The output is a vertical
+    consisting of structures of type struct which satisfy ``all/any`` ``(key,
+    val)`` conditions in ``attr``.
 
     """
-    log_invocation(cx)
     attr = set(attr)
-    match = "issuperset" if match == "all" else "intersection"
-    for struct in pyvert.iterstruct(cx.obj["input"], struct=struct):
+    if match == "all":
+        match = "issuperset"
+    elif match == "any":
+        match = "intersection"
+    else:
+        raise RuntimeError("Unsupported matching strategy: {}.".format(match))
+    for struct in pyvert.iterstruct(vertical, struct=struct):
         struct_attr = set(struct.attr.items())
         # check if struct_attr is a superset of attr (if match == "all") or
         # whether the intersection of struct_attr and attr is non-zero (if
         # match == "any")
         if getattr(struct_attr, match)(attr):
-            click.echo(struct.raw.encode(cx.obj["outenc"],
-                                         errors=cx.obj["errors"]),
-                       nl=False)
+            yield struct.raw
+
+
+_make_command(
+    filter,
+    _option("-s", "--struct", default="doc", type=str,
+            help="Structures into which the vertical will be split."),
+    _option("-a", "--attr", required=True, type=(str, str), multiple=True,
+            help="Attribute key/value pair(s) to filter by."),
+    _option("-m", "--match", default="all", type=click.Choice(["all", "any"]),
+            help="Match condition for ``--attr key val`` pairs."))
 
 
 @vrt.command()
@@ -168,7 +220,7 @@ def project(cx, parent, child):
     existing attributes in the child structure.
 
     """
-    log_invocation(cx)
+    _log_invocation(cx)
     for struct in pyvert.iterstruct(cx.obj["input"], struct=parent):
         struct.project(child=child)
         click.echo(etree.tostring(struct.xml, encoding=cx.obj["outenc"]))
