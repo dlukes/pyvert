@@ -13,7 +13,8 @@ __version__ = "0.0.0"
 etree.set_default_parser(etree.ETCompatXMLParser(huge_tree=True))
 
 # valid structure (i.e. pseudo-XML tag) names
-STRUCTURES = ["opus", "doc", "sp", "seg", "s"]
+STRUCTURES = ["opus", "doc", "sp", "seg", "s", "text", "p", "hi", "lb",
+              "group", "chunk"]
 
 
 class Structure():
