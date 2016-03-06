@@ -3,3 +3,4 @@
 # scipy>=0.9
 click
 lxml
+lazy
