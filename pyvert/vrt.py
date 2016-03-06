@@ -1,7 +1,6 @@
 import io
 import click
 import logging
-from itertools import chain
 
 import random
 import pyvert
@@ -35,25 +34,31 @@ def _log_invocation(cx):
         log(opt, val)
 
 
-def _make_command(gen_func, *decorators):
-    """Wrap a vertical manipulating generator function in a click command.
+def _option(*args, **kwargs):
+    return click.option(*args, show_default=True, **kwargs)
+
+
+def _switcheroo(click_command):
+    """Wrap a click sub-command callback while returning the unwrapped version.
+
+    This sets up some necessary wiring for using the callback as a click
+    sub-command while restoring the original function inside the module
+    namespace for use inside Python. (Sub-commands don't need to be accessible
+    by name at the top-level, only their parent command has to, so it makes
+    more sense to use the toplevel name for a function which can be programmed
+    with.)
 
     """
+    gen_func = click_command.callback.__wrapped__
+
     def command(cx, **kwargs):
         _log_invocation(cx)
         for chunk in gen_func(cx.obj["input"], **kwargs):
             click.echo(chunk.encode(cx.obj["outenc"], errors=cx.obj["errors"]),
                        nl=False)
 
-    command.__doc__ = gen_func.__doc__
-    for d in chain([click.pass_context, vrt.command(name=gen_func.__name__)],
-                   reversed(decorators)):
-        command = d(command)
-    return command
-
-
-def _option(*args, **kwargs):
-    return click.option(*args, show_default=True, **kwargs)
+    click_command.callback = command
+    return gen_func
 
 
 def linewise(chunks):
@@ -172,6 +177,15 @@ def group(cx, parent, target, attr, as_struct):
         click.echo(etree.tostring(grouped, encoding=cx.obj["outenc"]))
 
 
+@_switcheroo
+@vrt.command()
+@click.pass_context
+@_option("-s", "--struct", default="doc", type=str,
+         help="Structures into which the vertical will be split.")
+@_option("-a", "--attr", required=True, type=(str, str), multiple=True,
+         help="Attribute key/value pair(s) to filter by.")
+@_option("-m", "--match", default="all", type=click.Choice(["all", "any"]),
+         help="Match condition for ``--attr key val`` pairs.")
 def filter(vertical, struct, attr, match="all"):
     """Filter structures in vertical according to attribute value(s).
 
@@ -194,16 +208,6 @@ def filter(vertical, struct, attr, match="all"):
         # match == "any")
         if getattr(struct_attr, match)(attr):
             yield struct.raw
-
-
-_make_command(
-    filter,
-    _option("-s", "--struct", default="doc", type=str,
-            help="Structures into which the vertical will be split."),
-    _option("-a", "--attr", required=True, type=(str, str), multiple=True,
-            help="Attribute key/value pair(s) to filter by."),
-    _option("-m", "--match", default="all", type=click.Choice(["all", "any"]),
-            help="Match condition for ``--attr key val`` pairs."))
 
 
 @vrt.command()
