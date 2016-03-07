@@ -111,6 +111,7 @@ def vrt(cx, input, inenc, outenc, errors, id, log):
                         "/%(command)s:%(levelname)s] %(message)s")
 
 
+@_switcheroo
 @vrt.command()
 @click.pass_context
 @click.option("-a", "--ancestor", default="doc", type=str,
@@ -139,15 +140,15 @@ def chunk(cx, ancestor, child, name, minmax):
     maximum limit.
 
     """
-    _log_invocation(cx)
     # we want the chunking to be randomized within the minmax range, but
     # replicable across runs on the same data
     random.seed(1)
-    for struct in pyvert.iterstruct(cx.obj["input"], struct=ancestor):
+    for struct in pyvert.iterstruct(vertical, struct=ancestor):
         chunkified = struct.chunk(child=child, name=name, minmax=minmax)
-        click.echo(etree.tostring(chunkified, encoding=cx.obj["outenc"]))
+        yield etree.tostring(chunkified)
 
 
+@_switcheroo
 @vrt.command()
 @click.option("-p", "--parent", default=None, type=str,
               help="Structure which will immediately dominate the groups.")
@@ -170,11 +171,10 @@ def group(cx, parent, target, attr, as_struct):
     from the first target falling into the given group, and from the parent.
 
     """
-    _log_invocation(cx)
-    for i, struct in enumerate(pyvert.iterstruct(cx.obj["input"], struct=parent)):
+    for i, struct in enumerate(pyvert.iterstruct(vertical, struct=parent)):
         grouped = struct.group(target=target, attr=attr, as_struct=as_struct,
                                fallback_root_id="__autoid{}__".format(i))
-        click.echo(etree.tostring(grouped, encoding=cx.obj["outenc"]))
+        yield etree.tostring(grouped)
 
 
 @_switcheroo
@@ -210,21 +210,21 @@ def filter(vertical, struct, attr, match="all"):
             yield struct.raw
 
 
+@_switcheroo
 @vrt.command()
-@click.option("-p", "--parent", default="doc", type=str,
-              help="Structure *parent* which metadata will be projected.")
-@click.option("-c", "--child", default="text", type=str,
-              help="Structure *child* which metadata will be projected.")
+@_option("-p", "--parent", default="doc", type=str,
+         help="Structure *parent* which metadata will be projected.")
+@_option("-c", "--child", default="text", type=str,
+         help="Structure *child* which metadata will be projected.")
 @click.pass_context
-def project(cx, parent, child):
-    """Project metadata from ``--parent`` structure onto ``--child`` structure.
+def project(vertical, parent, child):
+    """Project metadata from ``parent`` structure onto ``child`` structure.
 
     Projected attributes are prefixed with the parent structure's name, and if
     necessary, postfixed with underscores so as to avoid collisions with any
     existing attributes in the child structure.
 
     """
-    _log_invocation(cx)
-    for struct in pyvert.iterstruct(cx.obj["input"], struct=parent):
+    for struct in pyvert.iterstruct(vertical, struct=parent):
         struct.project(child=child)
-        click.echo(etree.tostring(struct.xml, encoding=cx.obj["outenc"]))
+        yield etree.tostring(struct.xml)
