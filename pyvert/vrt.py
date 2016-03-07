@@ -86,16 +86,16 @@ def linewise(chunks):
 
 @click.group(context_settings=dict(obj={}))
 @click.pass_context
-@click.option("-i", "--input", type=click.File("r", lazy=True), default="-",
-              help="Path to vertical to process (default: STDIN).")
-@click.option("--inenc", type=str, default="utf-8", help="Input encoding.")
-@click.option("--outenc", type=str, default="utf-8", help="Output encoding.")
-@click.option("--errors", default="strict", type=click.Choice(ENC_ERR_HNDLRS),
-              help="How to handle encoding errors.")
-@click.option("--id", type=str, default="",
-              help="Give an ID to this call to distinguish it in the logs.")
-@click.option("-l", "--log", help="Logging verbosity.", default="INFO",
-              type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"]))
+@_option("-i", "--input", type=click.File("r", lazy=True), default="-",
+         help="Path to vertical to process (default: STDIN).")
+@_option("--inenc", type=str, default="utf-8", help="Input encoding.")
+@_option("--outenc", type=str, default="utf-8", help="Output encoding.")
+@_option("--errors", default="strict", type=click.Choice(ENC_ERR_HNDLRS),
+         help="How to handle encoding errors.")
+@_option("--id", type=str, default="",
+         help="Give an ID to this call to distinguish it in the logs.")
+@_option("-l", "--log", help="Logging verbosity.", default="INFO",
+         type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"]))
 def vrt(cx, input, inenc, outenc, errors, id, log):
     """Slice and dice a corpus in vertical format.
 
@@ -114,28 +114,27 @@ def vrt(cx, input, inenc, outenc, errors, id, log):
 @_switcheroo
 @vrt.command()
 @click.pass_context
-@click.option("-a", "--ancestor", default="doc", type=str,
-              help="The structure to split into chunks.")
-@click.option("-c", "--child", default="s", type=str,
-              help="The structure that the chunks will consist of.")
-@click.option("-n", "--name", default="chunk", type=str,
-              help="The name to give to the added chunk structures.")
-@click.option("-m", "--minmax", default=(2000, 5000), type=(int, int),
-              help="The minimum and maximum length of a chunk.")
-def chunk(cx, ancestor, child, name, minmax):
+@_option("-a", "--ancestor", default="doc", type=str,
+         help="The structure to split into chunks.")
+@_option("-c", "--child", default="s", type=str,
+         help="The structure that the chunks will consist of.")
+@_option("-n", "--name", default="chunk", type=str,
+         help="The name to give to the added chunk structures.")
+@_option("-m", "--minmax", default=(2000, 5000), type=(int, int),
+         help="The minimum and maximum length of a chunk.")
+def chunk(vertical, ancestor, child, name="chunk", minmax=(2000, 5000)):
     """Split a vertical into chunks of a given size.
 
     Output is that same vertical, but separated into chunks. All structures
-    other than ``--ancestor``, the chunks themselves and ``--child`` are
-    discarded.
+    other than ``ancestor``, the chunks themselves and ``child`` are discarded.
 
-    ``--ancestor`` is the existing structure on which to base the chunks; its
+    ``ancestor`` is the existing structure on which to base the chunks; its
     metadata will be copied over to the newly created chunks.
 
-    ``--child`` is the structure which will constitute the immediate children
-    of the chunks and whose boundaries the chunks will respect.
+    ``child`` is the structure which will constitute the immediate children of
+    the chunks and whose boundaries the chunks will respect.
 
-    Note that ``--minmax`` may be violated when the given ancestor structure is
+    Note that ``minmax`` may be violated when the given ancestor structure is
     shorter, or when the next child boundary occurs some positions after the
     maximum limit.
 
@@ -150,23 +149,23 @@ def chunk(cx, ancestor, child, name, minmax):
 
 @_switcheroo
 @vrt.command()
-@click.option("-p", "--parent", default=None, type=str,
-              help="Structure which will immediately dominate the groups.")
-@click.option("-t", "--target", default="sp", type=str,
-              help="Structure which will be grouped.")
-@click.option("-a", "--attr", default=["oznacenishody"], type=str, multiple=True,
-              help="Attribute(s) by which to group.")
-@click.option("--as", "as_struct", default="group", type=str,
-              help="Tag name of the group structures.")
 @click.pass_context
-def group(cx, parent, target, attr, as_struct):
+@_option("-p", "--parent", default=None, type=str,
+         help="Structure which will immediately dominate the groups.")
+@_option("-t", "--target", default="sp", type=str,
+         help="Structure which will be grouped.")
+@_option("-a", "--attr", default=["oznacenishody"], type=str, multiple=True,
+         help="Attribute(s) by which to group.")
+@_option("--as", "as_struct", default="group", type=str,
+         help="Tag name of the group structures.")
+def group(vertical, parent, target, attr, as_struct="group"):
     """Group structures in vertical according to an attribute.
 
-    Group all ``--target`` structures within each ``--parent`` structure
-    according to one or more of their ``--attr``ibute values.
+    Group all ``target`` structures within each ``parent`` structure
+    according to one or more of their ``attr``ibute values.
 
     Structures above parent and between parent and target are discarded. Groups
-    will be represented as structures with tag <``--as``> and an @id attribute
+    will be represented as structures with tag <``as``> and an @id attribute
     with the same value as the original attr. Other attributes are copied over
     from the first target falling into the given group, and from the parent.
 
@@ -212,11 +211,11 @@ def filter(vertical, struct, attr, match="all"):
 
 @_switcheroo
 @vrt.command()
+@click.pass_context
 @_option("-p", "--parent", default="doc", type=str,
          help="Structure *parent* which metadata will be projected.")
 @_option("-c", "--child", default="text", type=str,
          help="Structure *child* which metadata will be projected.")
-@click.pass_context
 def project(vertical, parent, child):
     """Project metadata from ``parent`` structure onto ``child`` structure.
 
