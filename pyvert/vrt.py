@@ -91,7 +91,7 @@ def linewise(chunks):
 @click.group(context_settings=dict(obj={}))
 @click.pass_context
 @_option("-i", "--input", type=click.File("r", lazy=True), default="-",
-         help="Path to vertical to process (default: STDIN).")
+         help="Path to vertical to process (- for STDIN).")
 @_option("--inenc", type=str, default="utf-8", help="Input encoding.")
 @_option("--outenc", type=str, default="utf-8", help="Output encoding.")
 @_option("--errors", default="strict", type=click.Choice(ENC_ERR_HNDLRS),
