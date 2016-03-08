@@ -1,5 +1,6 @@
 import io
 import click
+import functools
 import logging
 
 import random
@@ -12,6 +13,7 @@ signal(SIGPIPE, SIG_DFL)
 
 ENC_ERR_HNDLRS = ["strict", "ignore", "replace", "surrogateescape",
                   "xmlcharrefreplace", "backslashreplace", "namereplace"]
+API = {}
 
 #####################
 # Utility functions #
@@ -38,27 +40,29 @@ def _option(*args, **kwargs):
     return click.option(*args, show_default=True, **kwargs)
 
 
-def _switcheroo(click_command):
-    """Wrap a click sub-command callback while returning the unwrapped version.
-
-    This sets up some necessary wiring for using the callback as a click
-    sub-command while restoring the original function inside the module
-    namespace for use inside Python. (Sub-commands don't need to be accessible
-    by name at the top-level, only their parent command has to, so it makes
-    more sense to use the toplevel name for a function which can be programmed
-    with.)
+def _add2api(func):
+    """Store a function by name in the API dictionary so that it can be reinstated
+    in the global namespace instead of its decorated counterpart, which is not
+    useful for programming with (see end of this file).
 
     """
-    gen_func = click_command.callback.__wrapped__
+    API[func.__name__] = func
+    return func
 
+
+def _genfunc2comm(gen_func):
+    """Turn a generator function (which is a better and more elegant API
+    abstraction) into a function which can be used as a click command callback.
+
+    """
+    @functools.wraps(gen_func)
     def command(cx, **kwargs):
         _log_invocation(cx)
         for chunk in gen_func(cx.obj["input"], **kwargs):
             click.echo(chunk.encode(cx.obj["outenc"], errors=cx.obj["errors"]),
                        nl=False)
 
-    click_command.callback = command
-    return gen_func
+    return command
 
 
 def linewise(chunks):
@@ -111,7 +115,6 @@ def vrt(cx, input, inenc, outenc, errors, id, log):
                         "/%(command)s:%(levelname)s] %(message)s")
 
 
-@_switcheroo
 @vrt.command()
 @click.pass_context
 @_option("-a", "--ancestor", default="doc", type=str,
@@ -122,6 +125,8 @@ def vrt(cx, input, inenc, outenc, errors, id, log):
          help="The name to give to the added chunk structures.")
 @_option("-m", "--minmax", default=(2000, 5000), type=(int, int),
          help="The minimum and maximum length of a chunk.")
+@_genfunc2comm
+@_add2api
 def chunk(vertical, ancestor, child, name="chunk", minmax=(2000, 5000)):
     """Split a vertical into chunks of a given size.
 
@@ -147,7 +152,6 @@ def chunk(vertical, ancestor, child, name="chunk", minmax=(2000, 5000)):
         yield etree.tostring(chunkified)
 
 
-@_switcheroo
 @vrt.command()
 @click.pass_context
 @_option("-p", "--parent", default=None, type=str,
@@ -158,6 +162,8 @@ def chunk(vertical, ancestor, child, name="chunk", minmax=(2000, 5000)):
          help="Attribute(s) by which to group.")
 @_option("--as", "as_struct", default="group", type=str,
          help="Tag name of the group structures.")
+@_genfunc2comm
+@_add2api
 def group(vertical, parent, target, attr, as_struct="group"):
     """Group structures in vertical according to an attribute.
 
@@ -176,7 +182,6 @@ def group(vertical, parent, target, attr, as_struct="group"):
         yield etree.tostring(grouped)
 
 
-@_switcheroo
 @vrt.command()
 @click.pass_context
 @_option("-s", "--struct", default="doc", type=str,
@@ -185,6 +190,8 @@ def group(vertical, parent, target, attr, as_struct="group"):
          help="Attribute key/value pair(s) to filter by.")
 @_option("-m", "--match", default="all", type=click.Choice(["all", "any"]),
          help="Match condition for ``--attr key val`` pairs.")
+@_genfunc2comm
+@_add2api
 def filter(vertical, struct, attr, match="all"):
     """Filter structures in vertical according to attribute value(s).
 
@@ -209,13 +216,14 @@ def filter(vertical, struct, attr, match="all"):
             yield struct.raw
 
 
-@_switcheroo
 @vrt.command()
 @click.pass_context
 @_option("-p", "--parent", default="doc", type=str,
          help="Structure *parent* which metadata will be projected.")
 @_option("-c", "--child", default="text", type=str,
          help="Structure *child* which metadata will be projected.")
+@_genfunc2comm
+@_add2api
 def project(vertical, parent, child):
     """Project metadata from ``parent`` structure onto ``child`` structure.
 
@@ -227,3 +235,9 @@ def project(vertical, parent, child):
     for struct in pyvert.iterstruct(vertical, struct=parent):
         struct.project(child=child)
         yield etree.tostring(struct.xml)
+
+
+# now that all commands are defined, restore the original generator functions
+# in the global namespace to serve as an API which can be used from Python by
+# importing ``pyvert.vrt``
+globals().update(API)
