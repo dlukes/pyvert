@@ -68,12 +68,14 @@ def _genfunc2comm(gen_func):
 def linewise(chunks):
     """Iterate over vertical chunks in a linewise fashion.
 
-    Useful for composing functions that expect a filehandle to an unparsed
-    vertical as input and return vertical chunks as strings (for efficiency
-    purposes when outputting to the terminal -- it's faster to encode on a
-    chunk-by-chunk basis rather than line-by-line).
+    Useful for composing generator functions that expect a filehandle to an
+    unparsed vertical (which will be read line by line) as input and yield
+    chunks of the vertical as strings. Linewise yielding is not their default
+    behavior because when outputting to the terminal, it's faster to encode on
+    a chunk-by-chunk basis rather than line-by-line.
 
-    This makes it easy to chain operations directly in a Python script:
+    ``linewise()`` makes it easy to chain operations on a vertical directly in
+    a Python script:
 
         filtered = vrt.filter(filehandle, ...)
         grouped = vrt.group(linewise(filtered), ...)
