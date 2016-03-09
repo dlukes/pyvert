@@ -54,6 +54,30 @@ substituted with ``�``). When using commands that don't rely on parsing the
 vertical as XML (e.g. ``filter``), you can also try to round trip the invalid
 bytes with ``surrogateescape``.
 
+API
+---
+
+Each ``vrt`` command also exists as a generator function in the ``pyvert.vrt``
+namespace, which takes a filehandle to an unparsed vertical as input and yields
+the requested chunks. Thus, apart from the command line, the same functionality
+is easily accessible as a library for scripting from within Python.
+
+Since there's an asymmetry between the input and output of these generator
+functions (line by line vs. chunk by chunk), use the ``linewise()`` function to
+combine them into a pipeline like so::
+
+  from pyvert.vrt import filter, group, linewise
+
+  filtered = filter(filehandle, ...)
+  grouped = group(linewise(filtered), ...)
+
+  for chunk in grouped:
+      print(chunk)
+
+Since these are all generator functions, even large files can be processed in a
+memory-efficient way, provided that no part of the pipeline results in the
+creation of excessively big chunks.
+
 Note
 ====
 
