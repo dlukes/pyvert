@@ -64,7 +64,9 @@ is easily accessible as a library for scripting from within Python.
 
 Since there's an asymmetry between the input and output of these generator
 functions (line by line vs. chunk by chunk), use the ``linewise()`` function to
-combine them into a pipeline like so::
+combine them into a pipeline like so:
+
+.. code:: python
 
   from pyvert.vrt import filter, group, linewise
 
