@@ -151,7 +151,7 @@ def chunk(vertical, ancestor, child, name="chunk", minmax=(2000, 5000)):
     random.seed(1)
     for struct in pyvert.iterstruct(vertical, struct=ancestor):
         chunkified = struct.chunk(child=child, name=name, minmax=minmax)
-        yield etree.tostring(chunkified)
+        yield etree.tounicode(chunkified)
 
 
 @vrt.command()
@@ -181,7 +181,7 @@ def group(vertical, parent, target, attr, as_struct="group"):
     for i, struct in enumerate(pyvert.iterstruct(vertical, struct=parent)):
         grouped = struct.group(target=target, attr=attr, as_struct=as_struct,
                                fallback_root_id="__autoid{}__".format(i))
-        yield etree.tostring(grouped)
+        yield etree.tounicode(grouped)
 
 
 @vrt.command()
@@ -236,7 +236,7 @@ def project(vertical, parent, child):
     """
     for struct in pyvert.iterstruct(vertical, struct=parent):
         struct.project(child=child)
-        yield etree.tostring(struct.xml)
+        yield etree.tounicode(struct.xml)
 
 
 def decorate(vertical):
