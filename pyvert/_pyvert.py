@@ -1,9 +1,13 @@
+from os import environ as env
 from lazy import lazy
 from tempfile import NamedTemporaryFile as NamedTempFile
+import logging
+import click
 
 import re
 import random
 from lxml import etree
+from html import unescape
 
 __all__ = ["Structure", "iterstruct"]
 
@@ -21,8 +25,15 @@ class Structure():
     """A structure extracted from a vertical.
 
     """
-    def __init__(self, raw_vert):
+    def __init__(self, raw_vert, structs=env.get("VRT_STRUCTS", "").split()):
+        """__init__
+
+        :param structs: A list of strings to be considered valid struct
+            names for substructures, in addition to STRUCTURES.
+
+        """
         self.raw = raw_vert
+        self.structs = set(STRUCTURES + structs)
         self._first_line = self.raw.split("\n", maxsplit=1)[0]
         self.name = re.findall(r"\w+", self._first_line)[0]
         self.attr = dict(re.findall(r'(\w+)="([^"]+)"', self._first_line))
@@ -186,14 +197,32 @@ class Structure():
         """Transform vertical into marginally valid XML.
 
         """
-        vert = self.raw
-        vert = re.sub(r"&(?!lt;|gt;|amp;)", r"&amp;", vert)
+        # get rid of all XML entities and HTML entity references
+        vert = unescape(self.raw)
+        # escape only the bare minimum necessary for successful parsing as XML
+        vert = re.sub(r"&", r"&amp;", vert)
         vert = re.sub(r"<", "&lt;", vert)
         vert = re.sub(r">", "&gt;", vert)
         # now put pointy brackets back where they belong (= only on lines which
         # we are reasonably sure are structure start / end tags)
-        match = r"^&lt;(/?({})[^\t]*?)&gt;$".format("|".join(STRUCTURES))
+        match = r"^&lt;(/?({})[^\t]*?)&gt;$".format("|".join(self.structs))
         vert = re.sub(match, r"<\1>", vert, flags=re.M)
+        # warn about parts of the string which look a hell of a lot like
+        # structures but have been escaped because they're not in the set of
+        # valid structure names
+        cx = click.get_current_context()
+        command = cx.command.name if cx else ""
+        for suspect in re.findall(
+                r"""
+                ^   &lt;   (\w+)   .*?   &gt;   $
+                .*?
+                ^   &lt;   /  \1   .*?   &gt;   $""",
+                vert, flags=re.M | re.S | re.X):
+            logging.warn(
+                "Angle brackets around '{}' have been escaped, but it looks "
+                "like it might be a structure. Consider adding it to the "
+                "``VRT_STRUCTURES`` environment variable.".format(suspect),
+                extra=dict(command=command))
         return vert
 
 

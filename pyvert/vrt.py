@@ -5,6 +5,7 @@ import logging
 
 import random
 import pyvert
+import html
 from lxml import etree
 
 # prevent chatty BrokenPipe errors
@@ -237,6 +238,18 @@ def project(vertical, parent, child):
     for struct in pyvert.iterstruct(vertical, struct=parent):
         struct.project(child=child)
         yield etree.tounicode(struct.xml)
+
+
+@vrt.command()
+@click.pass_context
+@_genfunc2comm
+@_add2api
+def unescape(vertical):
+    """Replace XML entities and HTML entity references with codepoints.
+
+    """
+    for line in vertical:
+        yield html.unescape(line)
 
 
 def decorate(vertical):

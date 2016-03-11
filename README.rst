@@ -54,6 +54,29 @@ substituted with ``�``). When using commands that don't rely on parsing the
 vertical as XML (e.g. ``filter``), you can also try to round trip the invalid
 bytes with ``surrogateescape``.
 
+XML
+---
+
+The vertical format is not valid XML; however, for ease of processing,
+reliability and sanity, many of the ``vrt`` commands rely on parsing it as XML.
+These are some of the consequences:
+
+1. ``&``, ``<`` and ``>`` in positions will be escaped as XML entities
+   (otherwise the file cannot be parsed); all other XML entities, as well as
+   HTML entity references, will get converted to regular characters if the
+   output encoding supports them. Run ``vrt unescape`` as a final step to get a
+   consistent result by replacing all entities with regular codepoints, **which
+   is always what you want in linguistics anyway**. There are currently no plans
+   to add functionality so that entities re-emerge unscathed on the far side of
+   the pipeline, because they shouldn't have been in the input data in the first
+   place.
+2. In order to reliably distinguish angled brackets which are part of structure
+   tags from those which are part of positions (and escape the latter ones), a
+   list of valid structure names is kept in ``pyvert.STRUCTURES``. All other
+   structure tags will be escaped, unless you ``export
+   VRT_STRUCTURES="additional accepted structure names"``. You will be warned if
+   something that looks like it might be a structure has been escaped.
+
 API
 ---
 
