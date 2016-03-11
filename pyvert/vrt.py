@@ -239,6 +239,24 @@ def project(vertical, parent, child):
         yield etree.tostring(struct.xml)
 
 
+def decorate(vertical):
+    """Add a sequential index to vertical positions.
+
+    It is stored as the first positional attribute.
+
+    """
+    raise NotImplementedError()
+
+
+def undecorate(decorated, original, prune=True):
+    """Select positions from original vertical based on indices in decorated.
+
+    If ``prune`` is True, remove empty structures from output.
+
+    """
+    raise NotImplementedError()
+
+
 # now that all commands are defined, restore the original generator functions
 # in the global namespace to serve as an API which can be used from Python by
 # importing ``pyvert.vrt``
