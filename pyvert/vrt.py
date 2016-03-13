@@ -252,6 +252,15 @@ def unescape(vertical):
         yield html.unescape(line)
 
 
+def wrap(vertical, target, attr, name):
+    """Wrap ``target`` structures in a parent with tag ``name``.
+
+    Put adjacent structures under the same parent while their attribute ``key,
+    val`` pairs (as specified in ``attr``) are the same.
+
+    """
+    raise NotImplementedError()
+
 def decorate(vertical):
     """Add a sequential index to vertical positions.
 
