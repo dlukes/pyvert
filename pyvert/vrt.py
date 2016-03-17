@@ -261,6 +261,7 @@ def wrap(vertical, target, attr, name):
     """
     raise NotImplementedError()
 
+
 def decorate(vertical):
     """Add a sequential index to vertical positions.
 
