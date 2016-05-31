@@ -1,8 +1,10 @@
+import os
 import io
 import click
 import functools
 import logging
 
+import regex as re
 import random
 import pyvert
 import html
@@ -15,6 +17,7 @@ signal(SIGPIPE, SIG_DFL)
 ENC_ERR_HNDLRS = ["strict", "ignore", "replace", "surrogateescape",
                   "xmlcharrefreplace", "backslashreplace", "namereplace"]
 API = {}
+PYVERT_STRUCTS = os.environ.get("PYVERT_STRUCTS", "").split()
 
 #####################
 # Utility functions #
@@ -59,7 +62,11 @@ def _genfunc2comm(gen_func):
     @functools.wraps(gen_func)
     def command(cx, **kwargs):
         _log_invocation(cx)
-        for chunk in gen_func(cx.obj["input"], **kwargs):
+        logger = logging.getLogger()
+        for i, chunk in enumerate(gen_func(cx.obj["input"], **kwargs)):
+            if logger.getEffectiveLevel() <= logging.INFO:
+                click.echo("\rOutputting vertical fragment #{}.".format(i),
+                           err=True, nl=False)
             click.echo(chunk.encode(cx.obj["outenc"], errors=cx.obj["errors"]),
                        nl=False)
 
@@ -82,8 +89,11 @@ def linewise(chunks):
         grouped = vrt.group(linewise(filtered), ...)
 
     """
-    for chunk in chunks:
-        yield from io.StringIO(chunk)
+    if isinstance(chunks, str):
+        yield from io.StringIO(chunks)
+    else:
+        for chunk in chunks:
+            yield from io.StringIO(chunk)
 
 
 ############
@@ -109,7 +119,15 @@ def vrt(cx, input, inenc, outenc, errors, id, log):
     Available COMMANDs are listed below and are documented with ``vrt COMMAND
     --help``.
 
+    NOTE: In order to speed up processing to a degree, you can provide a list
+    of strings to be considered valid structure names in the ``PYVERT_STRUCTS``
+    environment variable. If provided, the list must be exhaustive, otherwise
+    unknown tags might be XML-escaped. If unsure, leave it unset, valid tags
+    will be detected automatically, which is somewhat slower but safer.
+
     """
+    if PYVERT_STRUCTS:
+        pyvert.config(structs=PYVERT_STRUCTS)
     input = click.File("r", encoding=inenc, errors=errors)(input.name, ctx=cx)
     cx.obj.update(input=input, inenc=inenc, outenc=outenc, errors=errors,
                   log=log)
@@ -150,24 +168,27 @@ def chunk(vertical, ancestor, child, name="chunk", minmax=(2000, 5000)):
     # we want the chunking to be randomized within the minmax range, but
     # replicable across runs on the same data
     random.seed(1)
-    for struct in pyvert.iterstruct(vertical, struct=ancestor):
-        chunkified = struct.chunk(child=child, name=name, minmax=minmax)
+    for i, struct in enumerate(pyvert.iterstruct(vertical, struct=ancestor)):
+        chunkified = struct.chunk(child=child, name=name, minmax=minmax,
+                                  fallback_orig_id="__autoid{}__".format(i))
         yield etree.tounicode(chunkified)
 
 
 @vrt.command()
 @click.pass_context
-@_option("-p", "--parent", default=None, type=str,
-         help="Structure which will immediately dominate the groups.")
 @_option("-t", "--target", default="sp", type=str,
          help="Structure which will be grouped.")
 @_option("-a", "--attr", default=["oznacenishody"], type=str, multiple=True,
          help="Attribute(s) by which to group.")
+@_option("-p", "--parent", default=None, type=str,
+         help="Structure which will immediately dominate the groups.")
+@_option("-u", "--unique", default=False, is_flag=True,
+         help="Grouping attributes are unique identifiers.")
 @_option("--as", "as_struct", default="group", type=str,
          help="Tag name of the group structures.")
 @_genfunc2comm
 @_add2api
-def group(vertical, parent, target, attr, as_struct="group"):
+def group(vertical, target, attr, parent=None, unique=False, as_struct="group"):
     """Group structures in vertical according to an attribute.
 
     Group all ``target`` structures within each ``parent`` structure
@@ -178,11 +199,20 @@ def group(vertical, parent, target, attr, as_struct="group"):
     with the same value as the original attr. Other attributes are copied over
     from the first target falling into the given group, and from the parent.
 
+    If no ``parent`` is given, groups will be constructed at the top level of
+    the vertical.
+
     """
     for i, struct in enumerate(pyvert.iterstruct(vertical, struct=parent)):
+        fri = None if unique else "__autoid{}__".format(i)
         grouped = struct.group(target=target, attr=attr, as_struct=as_struct,
-                               fallback_root_id="__autoid{}__".format(i))
-        yield etree.tounicode(grouped)
+                               fallback_root_id=fri)
+        serialized = etree.tounicode(grouped)
+        # get rid of helper <root/> struct wrapping the vertical to make it
+        # valid XML when it's taken as a whole
+        if parent is None:
+            serialized = serialized[7:-8]
+        yield serialized
 
 
 @vrt.command()
@@ -191,7 +221,7 @@ def group(vertical, parent, target, attr, as_struct="group"):
          help="Structures into which the vertical will be split.")
 @_option("-a", "--attr", required=True, type=(str, str), multiple=True,
          help="Attribute key/value pair(s) to filter by.")
-@_option("-m", "--match", default="all", type=click.Choice(["all", "any"]),
+@_option("-m", "--match", default="all", type=click.Choice(["all", "any", "none"]),
          help="Match condition for ``--attr key val`` pairs.")
 @_genfunc2comm
 @_add2api
@@ -199,15 +229,19 @@ def filter(vertical, struct, attr, match="all"):
     """Filter structures in vertical according to attribute value(s).
 
     All structures above ``struct`` are discarded. The output is a vertical
-    consisting of structures of type struct which satisfy ``all/any`` ``(key,
-    val)`` conditions in ``attr``.
+    consisting of structures of type struct which satisfy ``all/any/none``
+    ``(key, val)`` conditions in ``attr``.
 
     """
+    # TODO: reimplement this as a regex match on a string generated from the
+    # sorted attr list → will allow for wildcard matching
     attr = set(attr)
     if match == "all":
         match = "issuperset"
     elif match == "any":
         match = "intersection"
+    elif match == "none":
+        match = "isdisjoint"
     else:
         raise RuntimeError("Unsupported matching strategy: {}.".format(match))
     for struct in pyvert.iterstruct(vertical, struct=struct):
@@ -222,9 +256,9 @@ def filter(vertical, struct, attr, match="all"):
 @vrt.command()
 @click.pass_context
 @_option("-p", "--parent", default="doc", type=str,
-         help="Structure *parent* which metadata will be projected.")
+         help="Parent structure whose metadata will be projected.")
 @_option("-c", "--child", default="text", type=str,
-         help="Structure *child* which metadata will be projected.")
+         help="Child structure onto which metadata will be projected.")
 @_genfunc2comm
 @_add2api
 def project(vertical, parent, child):
@@ -242,24 +276,182 @@ def project(vertical, parent, child):
 
 @vrt.command()
 @click.pass_context
+@_option("--no-recursive", is_flag=True, default=False,
+         help="Remove only one layer of entitity escaping.")
 @_genfunc2comm
 @_add2api
-def unescape(vertical):
+def unescape(vertical, no_recursive=False):
     """Replace XML entities and HTML entity references with codepoints.
 
     """
     for line in vertical:
-        yield html.unescape(line)
+        line = line.strip() + "\n"
+        esc = html.unescape(line)
+        if no_recursive:
+            yield esc
+        else:
+            while esc != line:
+                esc, line = html.unescape(esc), esc
+            yield esc
 
 
-def wrap(vertical, target, attr, name):
+@vrt.command()
+@click.pass_context
+@_option("-t", "--target", default="doc", type=str,
+         help="Structure to wrap.")
+@_option("-a", "--attr", required=True, type=str, multiple=True,
+         help="Attributes to group by (if shared by adjacent structures).")
+@_option("-n", "--name", default="wrap", type=str,
+         help="Name of the wrapping structure.")
+@_genfunc2comm
+@_add2api
+def wrap(vertical, target, attr, name="wrap"):
     """Wrap ``target`` structures in a parent with tag ``name``.
 
     Put adjacent structures under the same parent while their attribute ``key,
-    val`` pairs (as specified in ``attr``) are the same.
+    val`` pairs (for all attributes specified under ``attr``) are the same.
 
     """
-    raise NotImplementedError()
+    last_attr = None
+    for i, struct in enumerate(pyvert.iterstruct(vertical, struct=target)):
+        try:
+            new_attr = ",".join(struct.attr[a] for a in attr)
+        except KeyError as e:
+            raise RuntimeError("Structure does not contain specified "
+                               "attribute.") from e
+        if new_attr != last_attr:
+            if last_attr is not None:
+                yield "</{}>\n".format(name)
+            yield '<{} id="{}_{}">\n'.format(name, new_attr, i)
+        yield struct.raw
+        last_attr = new_attr
+    yield "</{}>\n".format(name)
+
+
+@vrt.command()
+@click.pass_context
+@_option("-s", "--struct", default="doc", type=str,
+         help="Structure to add an identifier to.")
+@_option("-b", "--base", default="id_", type=str,
+         help="The common base of the identifier string.")
+@_option("-a", "--attr", default="id", type=str,
+         help="Name of the identifier attribute to add/overwrite.")
+@_genfunc2comm
+@_add2api
+def identify(vertical, struct, base="id_", attr="id"):
+    """Add a unique identifier attribute to each ``struct`` in vertical, and
+    hoist the struct to the top level of the vertical.
+
+    The identifier will be stored in attribute ``attr`` (possibly overwriting
+    it) and will be of the form ``<base>_<numeric index>``.
+
+    """
+    # TODO: iterate over lines instead so as not to drop structures above
+    # ``struct`` (→ change docstring when it's done)
+    for i, struct in enumerate(pyvert.iterstruct(vertical, struct=struct)):
+        struct.xml.attrib[attr] = base + str(i)
+        yield etree.tounicode(struct.xml)
+
+
+@vrt.command()
+@click.pass_context
+@_option("-t", "--tagger", type=click.Path(exists=True, dir_okay=False),
+         required=True, help="Path to tagger file to use.")
+@_option("-s", "--struct", type=str, multiple=True, default=PYVERT_STRUCTS,
+         help="Strings to be considered valid struct names.")
+@_option("-d", "--sent", type=str, multiple=True, required=True,
+         help="Name(s) of struct(s) which delimit sentences.")
+@_option("-x/-X", "--extended/--no-extended",
+         help="Output extended ID or bare lemmas (when applicable).")
+@_option("-g/-G", "--guesser/--no-guesser",
+         help="Use morphological guesser (when available).")
+@_genfunc2comm
+@_add2api
+def tag(vertical, tagger, struct, sent, extended, guesser):
+    """Tag vertical using MorphoDiTa.
+
+    A list of valid ``struct`` names must be explicitly provided, either via
+    the corresponding parameter (used repeatedly if necessary) or via the
+    ``PYVERT_STRUCTS`` environment variable.
+
+    """
+    if not struct:
+        raise RuntimeError(
+            "A list of valid ``struct`` names must be explicitly provided, "
+            "either via the corresponding parameter (used repeatedly if "
+            "necessary) or via the ``PYVERT_STRUCTS`` environment variable.")
+    struct = re.compile("^</?(?:" + "|".join(struct) + ").*?>")
+    sent_end = re.compile("^</(?:" + "|".join(sent) + ")\s*>")
+    try:
+        import ufal.morphodita as md
+    except ImportError as e:
+        raise RuntimeError(
+            "The ``tag`` subcommand needs the MorphoDiTa library and its Python "
+            "bindings; see http://ufal.mff.cuni.cz/morphodita.") from e
+    logging.info("Loading tagger.", extra=dict(command="tag"))
+    tagger, tagger_file = md.Tagger.load(tagger), tagger
+    if tagger is None:
+        raise RuntimeError(
+            "Unable to load tagger from file {}.".format(tagger_file))
+    forms = md.Forms()
+    lemmas = md.TaggedLemmas()
+    tokens = md.TokenRanges()
+    tokenizer = md.Tokenizer.newVerticalTokenizer()
+    morpho = tagger.getMorpho()
+    converter = md.TagsetConverter.newStripLemmaIdConverter(morpho)
+    guesser = 1 if guesser else 0
+    s_buffer = []
+    t_buffer = ""
+    for line in vertical:
+        if sent_end.match(line):
+            s_buffer.append(line)
+            t_buffer += "\n"
+            tokenizer.setText(t_buffer)
+            tokenizer.nextSentence(forms, tokens)
+            tagger.tag(forms, lemmas, morpho.NO_GUESSER)
+            tagged_iter = zip(forms, lemmas)
+            for s in s_buffer:
+                if s is None:
+                    w, l = next(tagged_iter)
+                    import ipdb
+                    ipdb.set_trace()
+
+                    if not extended:
+                        converter.convert(l)
+                    yield "{}\t{}\t{}\n".format(w, l.lemma, l.tag)
+                else:
+                    yield s
+            s_buffer = []
+            t_buffer = ""
+        elif struct.match(line):
+            s_buffer.append(line)
+        else:
+            s_buffer.append(None)
+            t_buffer += line
+    # emit any remaining structs at the end of the file
+    for s in s_buffer:
+        if s is None:
+            raise RuntimeError(
+                "Unclosed sentence at end of file; either the vertical is "
+                "malformed or the wrong structs were specified as sentence "
+                "delimiters.")
+        yield s
+
+
+@vrt.command()
+@click.pass_context
+@_genfunc2comm
+@_add2api
+def strip(vertical):
+    """Strip positional attributes other than the first one.
+
+    """
+    word = re.compile(r"^([^\t]+).*?(\s{0,2})$")
+    struct = re.compile(r"^<.*?>\s*$")
+    for line in vertical:
+        if not struct.match(line):
+            line = word.sub(r"\1\2", line)
+        yield line
 
 
 def decorate(vertical):
