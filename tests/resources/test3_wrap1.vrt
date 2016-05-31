@@ -1,0 +1,24 @@
+<wrap id="foo_0">
+<chunk author="foo">
+foo
+bar
+baz
+</chunk>
+<chunk author="foo">
+foo
+bar
+baz
+</chunk>
+</wrap>
+<wrap id="bar_2">
+<chunk author="bar">
+bar
+baz
+qux
+</chunk>
+<chunk author="bar">
+bar
+baz
+qux
+</chunk>
+</wrap>

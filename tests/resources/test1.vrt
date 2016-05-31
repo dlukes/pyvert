@@ -1,0 +1,44 @@
+<doc>
+<chunk author="foo">
+foo
+bar
+baz
+</chunk>
+<chunk author="bar">
+bar
+baz
+qux
+</chunk>
+<chunk author="foo">
+foo
+bar
+baz
+</chunk>
+<chunk author="bar">
+bar
+baz
+qux
+</chunk>
+</doc>
+<doc>
+<chunk author="foo">
+foo
+bar
+baz
+</chunk>
+<chunk author="bar">
+bar
+baz
+qux
+</chunk>
+<chunk author="foo">
+foo
+bar
+baz
+</chunk>
+<chunk author="bar">
+bar
+baz
+qux
+</chunk>
+</doc>

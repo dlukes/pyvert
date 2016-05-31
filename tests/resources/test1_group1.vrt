@@ -1,0 +1,44 @@
+<group author="foo" id="__autoid0__/foo">
+<chunk author="foo">
+foo
+bar
+baz
+</chunk>
+<chunk author="foo">
+foo
+bar
+baz
+</chunk>
+<chunk author="foo">
+foo
+bar
+baz
+</chunk>
+<chunk author="foo">
+foo
+bar
+baz
+</chunk>
+</group>
+<group author="bar" id="__autoid0__/bar">
+<chunk author="bar">
+bar
+baz
+qux
+</chunk>
+<chunk author="bar">
+bar
+baz
+qux
+</chunk>
+<chunk author="bar">
+bar
+baz
+qux
+</chunk>
+<chunk author="bar">
+bar
+baz
+qux
+</chunk>
+</group>
