@@ -4,3 +4,4 @@
 click
 lxml
 lazy
+regex
