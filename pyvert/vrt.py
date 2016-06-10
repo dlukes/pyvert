@@ -363,11 +363,9 @@ def identify(vertical, struct, base="id_", attr="id"):
          help="Name(s) of struct(s) which delimit sentences.")
 @_option("-x/-X", "--extended/--no-extended",
          help="Output extended ID or bare lemmas (when applicable).")
-@_option("-g/-G", "--guesser/--no-guesser",
-         help="Use morphological guesser (when available).")
 @_genfunc2comm
 @_add2api
-def tag(vertical, tagger, struct, sent, extended, guesser):
+def tag(vertical, tagger, struct, sent, extended):
     """Tag vertical using MorphoDiTa.
 
     A list of valid ``struct`` names must be explicitly provided, either via
@@ -399,7 +397,6 @@ def tag(vertical, tagger, struct, sent, extended, guesser):
     tokenizer = md.Tokenizer.newVerticalTokenizer()
     morpho = tagger.getMorpho()
     converter = md.TagsetConverter.newStripLemmaIdConverter(morpho)
-    guesser = 1 if guesser else 0
     s_buffer = []
     t_buffer = ""
     for line in vertical:
@@ -408,14 +405,11 @@ def tag(vertical, tagger, struct, sent, extended, guesser):
             t_buffer += "\n"
             tokenizer.setText(t_buffer)
             tokenizer.nextSentence(forms, tokens)
-            tagger.tag(forms, lemmas, morpho.NO_GUESSER)
+            tagger.tag(forms, lemmas)
             tagged_iter = zip(forms, lemmas)
             for s in s_buffer:
                 if s is None:
                     w, l = next(tagged_iter)
-                    import ipdb
-                    ipdb.set_trace()
-
                     if not extended:
                         converter.convert(l)
                     yield "{}\t{}\t{}\n".format(w, l.lemma, l.tag)
