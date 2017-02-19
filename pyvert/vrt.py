@@ -385,7 +385,8 @@ def tag(vertical, tagger, struct, sent, extended):
     except ImportError as e:
         raise RuntimeError(
             "The ``tag`` subcommand needs the MorphoDiTa library and its Python "
-            "bindings; see http://ufal.mff.cuni.cz/morphodita.") from e
+            "bindings; see http://ufal.mff.cuni.cz/morphodita, or simply run "
+            "``pip3 install --user ufal.morphodita``.") from e
     logging.info("Loading tagger.", extra=dict(command="tag"))
     tagger, tagger_file = md.Tagger.load(tagger), tagger
     if tagger is None:

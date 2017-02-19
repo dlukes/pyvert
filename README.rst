@@ -14,11 +14,16 @@ quite there.
 Installation
 ============
 
-Clone from GitHub and use ``pip``::
+Use ``pip``::
+
+  pip3 install --user git+https://github.com/dlukes/pyvert
+
+If you want to play around with the code as well, first clone from GitHub and
+then use ``pip``::
 
   git clone git@github.com:dlukes/pyvert.git
   cd pyvert
-  pip install --user [--editable] .
+  pip3 install --user [--editable] .
 
 A ``vrt`` command is installed as the CLI interface to the library. See ``vrt
 --help`` for details on **global options** and a list of available commands, and
